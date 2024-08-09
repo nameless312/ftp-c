@@ -1,0 +1,56 @@
+# Ignore binary files and object files
+*.o
+*.out
+*.a
+*.so
+*.exe
+*.dll
+
+# Ignore debug and profiling files
+*.dSYM/
+*.d/
+*.gcda
+*.gcno
+*.gcov
+
+# Ignore generated files
+*.gch
+*.log
+*.tmp
+*.stackdump
+*.plist
+
+# Ignore compiled dynamic libraries
+*.dll
+*.dylib
+*.jar
+
+# Ignore specific build directories
+/build/
+/bin/
+/obj/
+/lib/
+
+# Ignore CLion-specific files
+cmake-build-debug/
+cmake-build-release/
+.idea/
+*.iml
+*.iws
+*.ipr
+CMakeLists.txt.user
+
+# Ignore CMake build files
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+
+# Ignore IDE specific files (general)
+*.swp
+*~
+.vscode/
+*.sublime-workspace
+*.sublime-project
+*.cproject
+*.project
