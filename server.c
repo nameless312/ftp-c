@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 
-#define FTP_PORT 21
+#define CLIENT_PORT 21
 #define BUFFER_SIZE 1024
 
 void to_uppercase(char *str) {
@@ -18,8 +18,60 @@ void to_uppercase(char *str) {
     }
 }
 
+void send_message(const int fd, char buffer[], const int buffer_len) {
+    const ssize_t bytes_sent = send(fd, buffer, buffer_len, 0);
+    if (bytes_sent == -1) {
+        perror("The send function failed");
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void handle_list(char *response) {
+    strcpy(response,"Hello world");
+}
+
+
+
+void handle_command(const int fd, char command[]) {
+    char response_buffer[BUFFER_SIZE];
+
+    if (strcmp(command, "LIST") == 0) handle_list(response_buffer);
+
+    send_message(fd, response_buffer, strlen(response_buffer) + 1);
+    memset(response_buffer, 0, BUFFER_SIZE);
+}
+
+void handle_connection(const int incoming_fd) {
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes_received;
+
+    while ((bytes_received = recv(incoming_fd, buffer, BUFFER_SIZE, 0)) > 0) {
+        printf("Received %zd bytes: %s\n", bytes_received, buffer);
+
+        buffer[strcspn(buffer, "\r\n")] = 0;
+        to_uppercase(buffer);
+
+        if (bytes_received > 1) {
+            if (strcmp(buffer,"QUIT") == 0) {
+                break;
+            }
+
+            handle_command(incoming_fd, buffer);
+        }
+        // Clear buffer after processing to receive next chunk of data
+        memset(buffer, 0, BUFFER_SIZE);
+
+        if (bytes_received == -1) {
+            perror("recv failed");
+        } else if (bytes_received == 0) {
+            printf("Client disconnected\n");
+        }
+    }
+}
+
 int main() {
-    int server_fd, listening_socket;
+    int server_fd, incoming_fd;
     const int socket_opt = 1;
     struct sockaddr_in socket_address;
     int addr_size = sizeof(socket_address);
@@ -38,7 +90,7 @@ int main() {
 
     socket_address.sin_family = AF_INET;
     socket_address.sin_addr.s_addr = INADDR_ANY;
-    socket_address.sin_port = htons(FTP_PORT);
+    socket_address.sin_port = htons(CLIENT_PORT);
 
     // Bind the socket to the address and port
     if (bind(server_fd, (struct sockaddr *) &socket_address, addr_size)) {
@@ -54,48 +106,20 @@ int main() {
 
     while (1) {
         // Accept any incoming connection
-        if ((listening_socket = accept(server_fd, (struct sockaddr*) &socket_address, (socklen_t*) &addr_size)) < 0) {
+        if ((incoming_fd = accept(server_fd, (struct sockaddr*) &socket_address, (socklen_t*) &addr_size)) < 0) {
             perror("Could not accept incoming connections");
             exit(EXIT_FAILURE);
         }
 
-        char buffer[BUFFER_SIZE];
+        // handle the messages with the client
+        handle_connection(incoming_fd);
 
-        ssize_t bytes_received;
-        while ((bytes_received = recv(listening_socket, buffer, BUFFER_SIZE, 0)) > 0) {
-            printf("Received %zd bytes: %s\n", bytes_received, buffer);
-            to_uppercase(buffer);
-            if (strcmp(buffer,"QUIT\n") == 0) {
-                break;
-            }
-            ssize_t total_bytes_sent = 0;
-            while (total_bytes_sent < bytes_received) {
-                ssize_t bytes_sent = send(listening_socket, buffer + total_bytes_sent, bytes_received - total_bytes_sent, 0);
-                if (bytes_sent == -1) {
-                    perror("The send function failed");
-                    close(listening_socket);
-                    exit(EXIT_FAILURE);
-                }
-                total_bytes_sent += bytes_sent;
-            }
-
-            // Clear buffer after processing to receive next chunk of data
-            memset(buffer, 0, BUFFER_SIZE);
-        }
-
-        if (bytes_received == -1) {
-            perror("recv failed");
-        } else if (bytes_received == 0) {
-            printf("Client disconnected\n");
-        }
-        close(listening_socket);
+        // close incoming connection
+        close(incoming_fd);
         break;
     }
 
-
-    // send(listening_socket, )
-
-    // close all the open connections
+    // close all server connection
     close(server_fd);
 
     return 0;
